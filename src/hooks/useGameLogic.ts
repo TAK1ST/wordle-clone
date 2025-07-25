@@ -1,5 +1,6 @@
 // hooks/useGameLogic.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client'; // Thêm import này
 import { WORDS } from '../constants';
 import { evaluateGuess, updateGuessedLettersMap } from '../utils';
 import { 
@@ -13,7 +14,7 @@ import {
 } from '../types';
 
 export const useGameLogic = (url: string) => {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>("");
@@ -51,110 +52,87 @@ export const useGameLogic = (url: string) => {
       setCurrentPlayerId(playerId);
       setPlayerName(playerNameInput);
 
-      const ws = new WebSocket(url);
-      ws.onopen = () => {
+      const socketIo = io(url, {
+        transports: ['websocket'],
+        autoConnect: true
+      });
+
+      socketIo.on('connect', () => {
         setIsConnected(true);
-        setSocket(ws);
-        ws.send(
-          JSON.stringify({
-            type: "join_room",
-            data: { playerId, playerName: playerNameInput, roomId },
-          })
-        );
-      };
+        setSocket(socketIo);
+        socketIo.emit('join_room', { playerId, playerName: playerNameInput, roomId });
+      });
 
-      ws.onmessage = (event: MessageEvent) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          switch (message.type) {
-            case "room_update":
-              setRoom((prev) => {
-                if (!prev || prev.id !== message.data.id) {
-                  return {
-                    ...message.data,
-                    players: message.data.players.map((p: Player) => ({
-                      ...p,
-                      guesses: p.guesses || [],
-                      isFinished: p.isFinished || false,
-                    })),
-                  };
-                }
-                return prev;
-              });
-              break;
-            case "game_started":
-              setRoom((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      phase: "playing",
-                      secretWord: message.data.secretWord,
-                      startTime: Date.now(),
-                    }
-                  : null
-              );
-              setGameState("playing");
-              setGuesses([]);
-              setCurrentGuess("");
-              setGuessedLetters(new Map());
-              setShake(false);
-              setNotification("");
-              break;
-            case "game_finished":
-              setRoom((prev) => (prev ? { ...prev, phase: "finished" } : null));
-              setGameState("lost");
-              break;
-            case "player_update":
-              setRoom((prev) => {
-                if (!prev) return prev;
-                const updatedPlayers = prev.players.map((p) =>
-                  p.id === message.data.playerId
-                    ? {
-                        ...p,
-                        ...message.data,
-                        guesses: message.data.guesses || p.guesses,
-                      }
-                    : p
-                );
-                return { ...prev, players: updatedPlayers };
-              });
-              break;
-            case "error":
-              console.error("Server error:", message.data);
-              showNotification("Lỗi kết nối!");
-              break;
+      socketIo.on('room_update', (data) => {
+        setRoom((prev) => {
+          if (!prev || prev.id !== data.id) {
+            return {
+              ...data,
+              players: data.players.map((p: Player) => ({
+                ...p,
+                guesses: p.guesses || [],
+                isFinished: p.isFinished || false,
+              })),
+            };
           }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
-          showNotification("Lỗi xử lý dữ liệu!");
-        }
-      };
+          return data;
+        });
+      });
 
-      ws.onclose = () => {
+      socketIo.on('game_started', (data) => {
+        setRoom((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "playing",
+                secretWord: data.secretWord,
+                startTime: Date.now(),
+              }
+            : null
+        );
+        setGameState("playing");
+        setGuesses([]);
+        setCurrentGuess("");
+        setGuessedLetters(new Map());
+        setShake(false);
+        setNotification("");
+      });
+
+      socketIo.on('game_finished', () => {
+        setRoom((prev) => (prev ? { ...prev, phase: "finished" } : null));
+        setGameState("lost");
+      });
+
+      socketIo.on('error', (error) => {
+        console.error("Server error:", error);
+        showNotification("Lỗi kết nối!");
+      });
+
+      socketIo.on('disconnect', () => {
         setIsConnected(false);
         setSocket(null);
         showNotification("Mất kết nối!");
-      };
+      });
 
-      ws.onerror = (error) => {
+      socketIo.on('connect_error', (error) => {
         console.error("WebSocket error:", error);
         setIsConnected(false);
         showNotification("Lỗi kết nối!");
-      };
+      });
     },
     [url, showNotification]
   );
 
   const disconnect = useCallback(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
+    if (socket) {
+      socket.disconnect();
     }
   }, [socket]);
 
   const sendMessage = useCallback(
-    (message: WebSocketMessage) => {
+    (type: string, data: any) => {
       if (socket && isConnected) {
-        socket.send(JSON.stringify(message));
+        socket.emit(type, data);
       } else {
         showNotification("Không thể gửi: Mất kết nối!");
       }
@@ -162,20 +140,15 @@ export const useGameLogic = (url: string) => {
     [socket, isConnected, showNotification]
   );
 
+  // Các hàm khác giữ nguyên, chỉ thay đổi cách gọi sendMessage
   const toggleReady = useCallback(() => {
     const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
-    sendMessage({
-      type: "player_update",
-      data: { playerId: currentPlayerId, isReady: !currentPlayer?.isReady },
-    });
+    sendMessage('player_update', { playerId: currentPlayerId, isReady: !currentPlayer?.isReady });
   }, [sendMessage, currentPlayerId, room]);
 
   const startGame = useCallback(() => {
     if (room?.id) {
-      sendMessage({
-        type: "start_game",
-        data: { roomId: room.id },
-      });
+      sendMessage('start_game', { roomId: room.id });
     }
   }, [sendMessage, room]);
 

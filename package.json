@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "start": "node --loader ts-node/esm src/clients/server.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

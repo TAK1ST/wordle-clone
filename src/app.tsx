@@ -7,7 +7,7 @@ import { PlayerSidebar } from "./components/GamePlayer";
 import { GameHeader } from "./components/GameHeader";
 import { GameGrid } from "./components/GameGrid";
 import { GameResult } from "./components/GameResult";
-import { VirtualKeyboard } from "./components/VirtualKeyboard";
+import { VirtualKeyboard } from "./components/VirtualKeyBoard";
 import { Lightbulb } from "lucide-react";
 import { StatsModal } from "./components/StatsModalProps";
 // ===== MAIN COMPONENT =====

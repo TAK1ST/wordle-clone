@@ -58,4 +58,4 @@ export const KEYBOARD_ROWS = [
   ["ENTER", ..."ZXCVBNM".split(""), "BACKSPACE"],
 ];
 
-export const WEBSOCKET_URL = "wss://your-websocket-server.onrender.com";
+export const WEBSOCKET_URL = "ws://localhost:3001";

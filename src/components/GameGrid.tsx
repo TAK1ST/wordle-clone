@@ -6,6 +6,7 @@ interface GameGridProps {
   currentGuess: string;
   shake: boolean;
   size?: "normal" | "small";
+  showChar?: boolean;
 }
 
 export const GameGrid: React.FC<GameGridProps> = ({
@@ -13,32 +14,48 @@ export const GameGrid: React.FC<GameGridProps> = ({
   currentGuess,
   shake,
   size = "normal",
+  showChar = true,
 }) => {
   const renderGrid = () => {
     const rows = [];
+    
     for (let i = 0; i < 6; i++) {
-      const cells = guesses[i]
-        ? guesses[i].letters.map((letter, j) => (
+      let cells;
+      
+      if (guesses[i]) {
+        cells = guesses[i].letters.map((letter, j) => {
+          return (
             <WordCell
               key={j}
               char={letter.char}
               state={letter.state}
               delay={j * 100}
               size={size}
+              showChar={showChar}
             />
-          ))
-        : i === guesses.length && currentGuess
-        ? Array.from({ length: 5 }).map((_, j) => (
-            <WordCell
-              key={j}
-              char={currentGuess[j] || ""}
-              state="empty"
-              size={size}
-            />
-          ))
-        : Array.from({ length: 5 }).map((_, j) => (
-            <WordCell key={j} char="" state="empty" size={size} />
-          ));
+          );
+        });
+      } else if (i === guesses.length && currentGuess) {
+        cells = Array.from({ length: 5 }).map((_, j) => (
+          <WordCell
+            key={j}
+            char={currentGuess[j] || ""}
+            state="empty"
+            size={size}
+            showChar={showChar}
+          />
+        ));
+      } else {
+        cells = Array.from({ length: 5 }).map((_, j) => (
+          <WordCell
+            key={j}
+            char=""
+            state="empty"
+            size={size}
+            showChar={showChar}
+          />
+        ));
+      }
 
       const gapClass = size === "small" ? "gap-1" : "gap-2";
 
@@ -61,7 +78,9 @@ export const GameGrid: React.FC<GameGridProps> = ({
   return (
     <div
       className={
-        size === "small" ? "p-2" : "bg-white rounded-xl p-4 shadow-lg mb-4"
+        size === "small" 
+          ? "p-2 bg-gray-50 rounded-lg" 
+          : "bg-white rounded-xl p-4 shadow-lg mb-4"
       }
     >
       <div className={`flex flex-col ${gapClass}`}>{renderGrid()}</div>

@@ -37,42 +37,49 @@ export const PlayerSidebar: React.FC<PlayerSidebarProps> = ({
       </div>
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {players.map((player) => (
-          <div key={player.id} className="border rounded-lg p-3 bg-gray-50">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`font-medium text-sm ${
-                    player.id === currentPlayerId
-                      ? "text-blue-600"
-                      : "text-gray-600"
-                  }`}
-                >
-                  {player.name} {player.id === currentPlayerId && "(Bạn)"}
+        {players.map((player) => {
+          const playerGuesses = Array.isArray(player.guesses) ? player.guesses : [];
+
+          return (
+            <div key={player.id} className="border rounded-lg p-3 bg-gray-50">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`font-medium text-sm ${
+                      player.id === currentPlayerId
+                        ? "text-blue-600"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    {player.name} {player.id === currentPlayerId && "(Bạn)"}
+                  </span>
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      player.isOnline ? "bg-green-400" : "bg-gray-400"
+                    }`}
+                  />
+                </div>
+                <span className="text-xs text-gray-500">
+                  {playerGuesses.length}/6
                 </span>
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    player.isOnline ? "bg-green-400" : "bg-gray-400"
-                  }`}
-                />
               </div>
-              <span className="text-xs text-gray-500">
-                {player.guesses.length}/6
-              </span>
+
+              <GameGrid
+                guesses={playerGuesses}
+                currentGuess=""
+                shake={false}
+                size="small"
+                showChar={false} // ✅ Không hiển thị chữ trong sidebar
+              />
+              
+              {player.isFinished && (
+                <div className="text-xs text-center mt-1 text-green-600 font-medium">
+                  Hoàn thành!
+                </div>
+              )}
             </div>
-            <GameGrid
-              guesses={player.guesses}
-              currentGuess=""
-              shake={false}
-              size="small"
-            />
-            {player.isFinished && (
-              <div className="text-xs text-center mt-1 text-green-600 font-medium">
-                Hoàn thành!
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

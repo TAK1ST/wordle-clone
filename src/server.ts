@@ -16,10 +16,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Kiểu dữ liệu cho Player và Room
+interface Guess {
+  letters: Array<{
+    char: string;
+    state: 'correct' | 'present' | 'absent' | 'empty';
+  }>;
+}
+
 interface Player {
   id: string;
   name: string;
-  guesses: string[];
+  guesses: Guess[];
   isReady: boolean;
   isFinished: boolean;
   isOnline: boolean;
@@ -80,22 +87,49 @@ io.on('connection', (socket) => {
     }
 
     socket.join(roomId);
+    console.log(`[join_room] Player ${playerName} joined room ${roomId}`);
     io.to(roomId).emit('room_update', room);
   });
 
-  socket.on('player_update', (data: Partial<Player> & { playerId: string }) => {
+  // ✅ FIX: Xử lý player_update đúng cách
+  socket.on('player_update', (data: {
+    playerId: string;
+    guesses?: Guess[];
+    isReady?: boolean;
+    isFinished?: boolean;
+  }) => {
     if (!currentRoomId) return;
     const room = rooms.get(currentRoomId);
     if (!room) return;
 
-    const index = room.players.findIndex(p => p.id === data.playerId);
-    if (index !== -1) {
-      room.players[index] = {
-        ...room.players[index],
-        ...data
-      };
+    console.log(`[player_update] Received data:`, data);
+
+    const playerIndex = room.players.findIndex(p => p.id === data.playerId);
+    if (playerIndex !== -1) {
+      const player = room.players[playerIndex];
+      
+      // ✅ Cập nhật từng field một cách an toàn
+      if (data.guesses !== undefined) {
+        player.guesses = data.guesses;
+        console.log(`[player_update] Updated guesses for ${player.name}:`, player.guesses.length);
+      }
+      
+      if (data.isReady !== undefined) {
+        player.isReady = data.isReady;
+      }
+      
+      if (data.isFinished !== undefined) {
+        player.isFinished = data.isFinished;
+      }
+
+      console.log(`[player_update] Player ${player.name} state:`, {
+        guessesCount: player.guesses.length,
+        isFinished: player.isFinished,
+        isReady: player.isReady
+      });
     }
 
+    // ✅ Gửi room_update để đồng bộ tất cả client
     io.to(currentRoomId).emit('room_update', room);
   });
 
@@ -110,14 +144,20 @@ io.on('connection', (socket) => {
     room.secretWord = getRandomWord();
     room.startTime = Date.now();
 
+    // ✅ Reset trạng thái game cho tất cả player
     room.players.forEach(p => {
       p.guesses = [];
       p.isFinished = false;
     });
 
+    console.log(`[start_game] Game started in room ${roomId} with word: ${room.secretWord}`);
+
     io.to(roomId).emit('game_started', {
       secretWord: room.secretWord
     });
+    
+    // ✅ Gửi room_update để đồng bộ trạng thái
+    io.to(roomId).emit('room_update', room);
   });
 
   socket.on('disconnect', () => {
@@ -127,17 +167,19 @@ io.on('connection', (socket) => {
         const player = room.players.find(p => p.id === currentPlayerId);
         if (player) {
           player.isOnline = false;
+          console.log(`[disconnect] Player ${player.name} went offline`);
         }
 
         io.to(currentRoomId).emit('room_update', room);
 
+        // Auto-delete room after 5 minutes if no one online
         const anyoneOnline = room.players.some(p => p.isOnline);
         if (!anyoneOnline) {
           setTimeout(() => {
             const currentRoom = rooms.get(currentRoomId!);
             if (currentRoom && !currentRoom.players.some(p => p.isOnline)) {
               rooms.delete(currentRoomId!);
-              console.log(`Phòng ${currentRoomId} đã bị xóa`);
+              console.log(`Room ${currentRoomId} deleted due to inactivity`);
             }
           }, 5 * 60 * 1000);
         }

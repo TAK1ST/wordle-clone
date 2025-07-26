@@ -1,6 +1,6 @@
 // hooks/useGameLogic.ts
-import { useState, useCallback, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client'; // Thêm import này
+import { useState, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { WORDS } from '../constants';
 import { evaluateGuess, updateGuessedLettersMap } from '../utils';
 import { 
@@ -9,8 +9,7 @@ import {
   Guess, 
   LetterState, 
   GameStats, 
-  LastGame, 
-  WebSocketMessage 
+  LastGame
 } from '../types';
 
 export const useGameLogic = (url: string) => {
@@ -64,6 +63,7 @@ export const useGameLogic = (url: string) => {
       });
 
       socketIo.on('room_update', (data) => {
+        console.log('[room_update] Received:', data);
         setRoom((prev) => {
           if (!prev || prev.id !== data.id) {
             return {
@@ -75,7 +75,14 @@ export const useGameLogic = (url: string) => {
               })),
             };
           }
-          return data;
+          return {
+            ...data,
+            players: data.players.map((p: Player) => ({
+              ...p,
+              guesses: p.guesses || [],
+              isFinished: p.isFinished || false,
+            })),
+          };
         });
       });
 
@@ -132,6 +139,7 @@ export const useGameLogic = (url: string) => {
   const sendMessage = useCallback(
     (type: string, data: any) => {
       if (socket && isConnected) {
+        console.log(`[sendMessage] ${type}:`, data);
         socket.emit(type, data);
       } else {
         showNotification("Không thể gửi: Mất kết nối!");
@@ -140,7 +148,6 @@ export const useGameLogic = (url: string) => {
     [socket, isConnected, showNotification]
   );
 
-  // Các hàm khác giữ nguyên, chỉ thay đổi cách gọi sendMessage
   const toggleReady = useCallback(() => {
     const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
     sendMessage('player_update', { playerId: currentPlayerId, isReady: !currentPlayer?.isReady });
@@ -178,7 +185,10 @@ export const useGameLogic = (url: string) => {
     setGuessedLetters(updateGuessedLettersMap(guessedLetters, evaluatedGuess));
     setCurrentGuess("");
 
-    if (currentGuess.toUpperCase() === room.secretWord) {
+    const isWon = currentGuess.toUpperCase() === room.secretWord;
+    const isFinished = isWon || newGuesses.length >= 6;
+
+    if (isWon) {
       setGameState("won");
       const newStats = {
         ...stats,
@@ -206,15 +216,11 @@ export const useGameLogic = (url: string) => {
       showNotification(`Từ cần đoán: ${room.secretWord}`);
     }
 
-    sendMessage({
-      type: "player_update",
-      data: {
-        playerId: currentPlayerId,
-        guesses: newGuesses,
-        isFinished:
-          currentGuess.toUpperCase() === room.secretWord ||
-          newGuesses.length >= 6,
-      },
+    // ✅ FIX: Gửi đúng cấu trúc dữ liệu
+    sendMessage('player_update', {
+      playerId: currentPlayerId,
+      guesses: newGuesses,
+      isFinished: isFinished,
     });
   }, [
     currentGuess,
@@ -253,13 +259,12 @@ export const useGameLogic = (url: string) => {
     setGuessedLetters(new Map());
     setShake(false);
     setNotification("");
-    sendMessage({
-      type: "player_update",
-      data: {
-        playerId: currentPlayerId,
-        guesses: [],
-        isFinished: false,
-      },
+    
+    // ✅ FIX: Gửi đúng cấu trúc dữ liệu
+    sendMessage('player_update', {
+      playerId: currentPlayerId,
+      guesses: [],
+      isFinished: false,
     });
   }, [sendMessage, currentPlayerId]);
 

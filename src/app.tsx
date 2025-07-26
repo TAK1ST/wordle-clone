@@ -95,6 +95,8 @@ const App: React.FC = () => {
             guesses={guesses}
             currentGuess={currentGuess}
             shake={shake}
+            size="normal"
+            showChar={true}
           />
 
           <GameResult gameState={gameState} onNewGame={newGame} />

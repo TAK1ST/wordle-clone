@@ -1,5 +1,5 @@
 // hooks/useGameLogic.ts
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { WORDS } from '../constants';
 import { evaluateGuess, updateGuessedLettersMap } from '../utils';
@@ -9,8 +9,7 @@ import {
   Guess, 
   LetterState, 
   GameStats, 
-  LastGame, 
-  WebSocketMessage 
+  LastGame
 } from '../types';
 
 export const useGameLogic = (url: string) => {

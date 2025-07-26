@@ -4,23 +4,28 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "start": "node --loader ts-node/esm src/clients/server.ts",
+    "dev": "concurrently \"vite --host\" \"nodemon --watch src --ext ts --exec node --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts\"",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "ts-node src/server.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
+    "concurrently": "^8.2.2",
     "express": "^5.1.0",
     "lucide-react": "^0.525.0",
     "preact": "^10.26.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.1",
     "@types/express": "^5.0.3",
+    "@types/node": "^24.1.0",
+    "@types/socket.io": "^3.0.1",
+    "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "~5.7.2",
     "vite": "^6.2.0"

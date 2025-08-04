@@ -216,7 +216,6 @@ export const useGameLogic = (url: string) => {
       showNotification(`Từ cần đoán: ${room.secretWord}`);
     }
 
-    // ✅ FIX: Gửi đúng cấu trúc dữ liệu
     sendMessage('player_update', {
       playerId: currentPlayerId,
       guesses: newGuesses,
@@ -260,7 +259,6 @@ export const useGameLogic = (url: string) => {
     setShake(false);
     setNotification("");
     
-    // ✅ FIX: Gửi đúng cấu trúc dữ liệu
     sendMessage('player_update', {
       playerId: currentPlayerId,
       guesses: [],

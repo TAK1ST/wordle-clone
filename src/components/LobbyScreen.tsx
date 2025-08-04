@@ -1,4 +1,3 @@
-// components/LobbyScreen.tsx
 import React, { useState } from "react";
 import { UserPlus } from "lucide-react";
 
@@ -28,7 +27,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
             <span className="text-white font-bold text-2xl">W</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Wordle Multiplayer
+           Word Play In Free 
           </h1>
           <p className="text-gray-600">Nhập tên và mã phòng để tham gia</p>
         </div>
@@ -44,7 +43,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPlayerName(e.currentTarget.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nhập tên của bạn..."
-              maxLength={20}
+              maxLength={100}
               disabled={isConnecting}
             />
           </div>

@@ -10,7 +10,7 @@ import { GameResult } from "./components/GameResult";
 import { VirtualKeyboard } from "./components/VirtualKeyBoard";
 import { Lightbulb } from "lucide-react";
 import { StatsModal } from "./components/StatsModalProps";
-// ===== MAIN COMPONENT =====
+
 const App: React.FC = () => {
   const {
     isConnected,
@@ -34,22 +34,6 @@ const App: React.FC = () => {
   } = useGameLogic(WEBSOCKET_URL);
 
   const [showStats, setShowStats] = useState<boolean>(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      e.preventDefault();
-      if (e.key === "Enter") {
-        handleKeyPress("ENTER");
-      } else if (e.key === "Backspace") {
-        handleKeyPress("BACKSPACE");
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        handleKeyPress(e.key.toUpperCase());
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyPress]);
 
   if (!room) {
     return (

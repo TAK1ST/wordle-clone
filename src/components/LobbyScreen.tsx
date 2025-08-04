@@ -16,6 +16,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
 }) => {
   const [roomId, setRoomId] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
+    console.log(params.get("roomId"));
     return params.get("roomId") || "";
   });
 

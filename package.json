@@ -4,10 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite --host\" \"nodemon --watch src --ext ts --exec node --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts\"",
+    "dev": "vite --host",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "server": "ts-node src/server.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",

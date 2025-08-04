@@ -1,4 +1,4 @@
-import React, { useEffect, useState} from "react";
+import React, { useState} from "react";
 import { WEBSOCKET_URL } from "./constants";
 import { useGameLogic } from "./hooks/useGameLogic";
 import { LobbyScreen } from "./components/LobbyScreen";

@@ -1,9 +1,5 @@
 // utils.ts
-import { WORDS } from './constants';
 import { Letter, LetterState } from './types';
-
-export const getRandomWord = (): string =>
-  WORDS[Math.floor(Math.random() * WORDS.length)];
 
 export const evaluateGuess = (guess: string, secretWord: string): Letter[] => {
   const result: Letter[] = [];

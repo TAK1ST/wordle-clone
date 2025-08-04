@@ -1,8 +1,6 @@
-// hooks/useGameLogic.ts
 import { useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { WORDS } from '../constants';
-import { evaluateGuess, updateGuessedLettersMap } from '../utils';
+import { updateGuessedLettersMap } from '../utils';
 import { 
   GameRoom, 
   Player, 
@@ -31,6 +29,7 @@ export const useGameLogic = (url: string) => {
   const [shake, setShake] = useState<boolean>(false);
   const [notification, setNotification] = useState<string>("");
   const [playerName, setPlayerName] = useState<string>("");
+  const [isSubmittingGuess, setIsSubmittingGuess] = useState<boolean>(false);
 
   const showNotification = useCallback((message: string) => {
     setNotification(message);
@@ -63,7 +62,6 @@ export const useGameLogic = (url: string) => {
       });
 
       socketIo.on('room_update', (data) => {
-        console.log('[room_update] Received:', data);
         setRoom((prev) => {
           if (!prev || prev.id !== data.id) {
             return {
@@ -103,31 +101,99 @@ export const useGameLogic = (url: string) => {
         setGuessedLetters(new Map());
         setShake(false);
         setNotification("");
+        setIsSubmittingGuess(false);
       });
 
       socketIo.on('game_finished', () => {
         setRoom((prev) => (prev ? { ...prev, phase: "finished" } : null));
         setGameState("lost");
+        setIsSubmittingGuess(false);
+      });
+
+      // Handle guess validation response from server
+      socketIo.on('guess_result', (data) => {
+        if (data.success) {
+          // Thêm guess mới vào danh sách
+          setGuesses(prevGuesses => {
+            const newGuesses = [...prevGuesses, data.guess];
+            
+            // Cập nhật guessed letters map
+            setGuessedLetters(prevGuessedLetters => 
+              updateGuessedLettersMap(prevGuessedLetters, data.guess.letters)
+            );
+            
+            return newGuesses;
+          });
+          
+          // Delay việc clear currentGuess để tránh flash
+          setTimeout(() => {
+            setCurrentGuess("");
+            setIsSubmittingGuess(false);
+          }, 100);
+
+          // Check win/loss conditions
+          if (data.isWon) {
+            setGameState("won");
+            setStats(prevStats => {
+              const newStats = {
+                ...prevStats,
+                played: prevStats.played + 1,
+                won: prevStats.won + 1,
+                currentStreak: prevStats.currentStreak + 1,
+                maxStreak: Math.max(prevStats.maxStreak, prevStats.currentStreak + 1),
+              };
+              return newStats;
+            });
+            setLastGame((prevLastGame) => ({
+              won: true,
+              guesses: (prevLastGame?.guesses || 0) + 1,
+              word: room?.secretWord || "",
+            }));
+            showNotification("🎉 Xuất sắc!");
+          } else if (data.isFinished) {
+            setGameState("lost");
+            setStats(prevStats => ({
+              ...prevStats,
+              played: prevStats.played + 1,
+              currentStreak: 0,
+            }));
+            setLastGame({ 
+              won: false, 
+              guesses: 6, 
+              word: room?.secretWord || "" 
+            });
+            showNotification(`Từ cần đoán: ${room?.secretWord}`);
+          }
+        } else {
+          // Handle validation error
+          setIsSubmittingGuess(false);
+          setShake(true);
+          setTimeout(() => setShake(false), 500);
+          showNotification(data.error || "Lỗi không xác định!");
+        }
       });
 
       socketIo.on('error', (error) => {
         console.error("Server error:", error);
+        setIsSubmittingGuess(false);
         showNotification("Lỗi kết nối!");
       });
 
       socketIo.on('disconnect', () => {
         setIsConnected(false);
         setSocket(null);
+        setIsSubmittingGuess(false);
         showNotification("Mất kết nối!");
       });
 
       socketIo.on('connect_error', (error) => {
         console.error("WebSocket error:", error);
         setIsConnected(false);
+        setIsSubmittingGuess(false);
         showNotification("Lỗi kết nối!");
       });
     },
-    [url, showNotification]
+    [url, showNotification, room]
   );
 
   const disconnect = useCallback(() => {
@@ -160,72 +226,29 @@ export const useGameLogic = (url: string) => {
   }, [sendMessage, room]);
 
   const submitGuess = useCallback(() => {
-    if (!room?.secretWord || currentGuess.length !== 5) {
+    // Prevent double submission
+    if (isSubmittingGuess) return;
+
+    // Simple client-side check for empty guess
+    if (currentGuess.length !== 5) {
       setShake(true);
       setTimeout(() => setShake(false), 500);
-      showNotification("Cần đủ 5 chữ cái!");
+      showNotification("Vui lòng nhập đủ 5 chữ cái!");
       return;
     }
 
-    if (!WORDS.includes(currentGuess.toUpperCase())) {
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      showNotification("Từ không hợp lệ!");
-      return;
-    }
+    // Set submitting state
+    setIsSubmittingGuess(true);
 
-    const evaluatedGuess = evaluateGuess(
-      currentGuess.toUpperCase(),
-      room.secretWord
-    );
-    const newGuess: Guess = { letters: evaluatedGuess };
-    const newGuesses = [...guesses, newGuess];
-
-    setGuesses(newGuesses);
-    setGuessedLetters(updateGuessedLettersMap(guessedLetters, evaluatedGuess));
-    setCurrentGuess("");
-
-    const isWon = currentGuess.toUpperCase() === room.secretWord;
-    const isFinished = isWon || newGuesses.length >= 6;
-
-    if (isWon) {
-      setGameState("won");
-      const newStats = {
-        ...stats,
-        played: stats.played + 1,
-        won: stats.won + 1,
-        currentStreak: stats.currentStreak + 1,
-        maxStreak: Math.max(stats.maxStreak, stats.currentStreak + 1),
-      };
-      setStats(newStats);
-      setLastGame({
-        won: true,
-        guesses: newGuesses.length,
-        word: room.secretWord,
-      });
-      showNotification("🎉 Xuất sắc!");
-    } else if (newGuesses.length >= 6) {
-      setGameState("lost");
-      const newStats = {
-        ...stats,
-        played: stats.played + 1,
-        currentStreak: 0,
-      };
-      setStats(newStats);
-      setLastGame({ won: false, guesses: 6, word: room.secretWord });
-      showNotification(`Từ cần đoán: ${room.secretWord}`);
-    }
-
-    sendMessage('player_update', {
+    // Send guess to server for validation and processing
+    sendMessage('submit_guess', {
       playerId: currentPlayerId,
-      guesses: newGuesses,
-      isFinished: isFinished,
+      roomId: room?.id,
+      guess: currentGuess.toUpperCase()
     });
   }, [
     currentGuess,
-    guesses,
-    guessedLetters,
-    stats,
+    isSubmittingGuess,
     showNotification,
     sendMessage,
     currentPlayerId,
@@ -234,21 +257,21 @@ export const useGameLogic = (url: string) => {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (gameState !== "playing" || room?.phase !== "playing") return;
+      if (gameState !== "playing" || room?.phase !== "playing" || isSubmittingGuess) return;
 
       if (key === "ENTER") {
         submitGuess();
       } else if (key === "BACKSPACE") {
-        setCurrentGuess(currentGuess.slice(0, -1));
+        setCurrentGuess(prev => prev.slice(0, -1));
       } else if (
         key.length === 1 &&
         /[A-Za-z]/.test(key) &&
         currentGuess.length < 5
       ) {
-        setCurrentGuess(currentGuess + key.toUpperCase());
+        setCurrentGuess(prev => prev + key.toUpperCase());
       }
     },
-    [gameState, currentGuess, submitGuess, room]
+    [gameState, currentGuess, submitGuess, room, isSubmittingGuess]
   );
 
   const newGame = useCallback(() => {
@@ -258,6 +281,7 @@ export const useGameLogic = (url: string) => {
     setGuessedLetters(new Map());
     setShake(false);
     setNotification("");
+    setIsSubmittingGuess(false);
     
     sendMessage('player_update', {
       playerId: currentPlayerId,
@@ -287,5 +311,6 @@ export const useGameLogic = (url: string) => {
     handleKeyPress,
     newGame,
     showNotification,
+    isSubmittingGuess,
   };
 };

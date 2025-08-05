@@ -23,7 +23,9 @@ export const GameGrid: React.FC<GameGridProps> = ({
       let cells;
       
       if (guesses[i]) {
+        console.log("Rendering guess:", guesses[i]);
         cells = guesses[i].letters.map((letter, j) => {
+          console.log(`Rendering letter: ${letter.char} `, typeof letter.char);
           return (
             <WordCell
               key={j}

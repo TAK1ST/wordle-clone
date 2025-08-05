@@ -112,6 +112,7 @@ export const useGameLogic = (url: string) => {
 
       // Handle guess validation response from server
       socketIo.on('guess_result', (data) => {
+        console.log("Received guess result:", data);
         if (data.success) {
           // Thêm guess mới vào danh sách
           setGuesses(prevGuesses => {
